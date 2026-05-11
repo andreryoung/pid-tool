@@ -403,6 +403,7 @@
     <button class="hbtn save-btn" id="save-profile-btn" onclick="saveProfileBtn()" title="Aktuelles Profil speichern">💾 Speichern</button>
     <button class="hbtn" id="btn-export" onclick="exportProfile()" title="Alle Profile als JSON exportieren">📤 Export</button>
     <button class="hbtn" id="btn-import" onclick="document.getElementById('import-file').click()" title="Profile aus JSON importieren">📥 Import</button>
+    <button class="hbtn" id="btn-cli" onclick="copyBFCLI()" title="Betaflight CLI als Text kopieren" style="display:none;border-color:rgba(59,130,246,.3);color:#1d4ed8;background:#eff6ff">📋 CLI</button>
     <button class="pdf-btn" id="btn-pdf" onclick="exportPDF()" title="Aktuelles Profil als PDF">🖨️ PDF</button>
     <button class="lang-btn" id="lang-toggle" onclick="toggleLang()" title="Language / Sprache">🇩🇪 DE</button>
     <input type="file" id="import-file" accept=".json" style="display:none" onchange="importProfile(this)">
@@ -455,8 +456,8 @@ const PHASES_ALPHA = [
   {id:'ph8',  labelKey:'phase.battery',    icon:'🔋'},
   {id:'ph9',  labelKey:'phase.preflight',  icon:'✅'},
   {id:'diag', labelKey:'phase.diagnose',   icon:'🔥'},
-  {id:'props',labelKey:'phase.props',      icon:'🌀'},
   {id:'phys', labelKey:'phase.kv',         icon:'🧠'},
+  {id:'log',  labelKey:'phase.log',         icon:'📝'},
 ];
 const PHASES_BF = [
   {id:'setup',labelKey:'phase.setup',      icon:'⚙️'},
@@ -470,8 +471,8 @@ const PHASES_BF = [
   {id:'ph8',  labelKey:'phase.rates',      icon:'📐'},
   {id:'ph9',  labelKey:'phase.preflight',  icon:'✅'},
   {id:'diag', labelKey:'phase.diagnose',   icon:'🔥'},
-  {id:'props',labelKey:'phase.props',      icon:'🌀'},
   {id:'phys', labelKey:'phase.kv',         icon:'🧠'},
+  {id:'log',  labelKey:'phase.log',         icon:'📝'},
 ];
 // Dynamische PHASES-Referenz — immer über diese Funktion ansprechen
 function getPhases() {
@@ -674,13 +675,17 @@ function getBFPIDs(type, size, motorKV, cells) {
 
 const RX_PROTOS   =['ExpressLRS (ELRS)','TBS Crossfire (CRSF)','TBS Tracer (CRSF)','Ghost','FrSky SBUS+S-Port'];
 const VTX_TYPES   =['Analog (SmartAudio)','Analog (Tramp)','DJI O3','Caddx Vista','Walksnail Avatar','Kein VTX'];
-const FRAME_SIZES =['2.5"','3"','3.5"','4"','5"','6"','7"','Longrange (>7")'];
+const FRAME_SIZES =['2"','2.5"','3"','3.5"','4"','5"','6"','7"','Longrange (>7")'];
 const COPTER_TYPES=['Racing','Freestyle','Cinewhoop','Longrange','Cinematic'];
-const CELL_COUNTS   =['3S','4S','5S','6S'];
+const CELL_COUNTS   =['2S','3S','4S','5S','6S'];
 const PROP_BLADES   =['2 Blatt','3 Blatt','4 Blatt'];
 const PROP_DIAMETERS=['2"','2.5"','3"','3.5"','4"','4.5"','5"','5.1"','5.5"','6"','7"','8"','9"','10"'];
 const PROP_PITCHES  =['1.5"','2.0"','2.5"','3.0"','3.5"','4.0"','4.3"','4.5"','4.8"','5.0"','5.5"','6.0"'];
-const ESC_PWM_OPTS  =['OneWire (empfohlen)','DShot2400','DShot1200','DShot600','DShot300','48kHz PWM','24kHz PWM'];
+const ESC_PWM_OPTS    =['OneWire (empfohlen)','DShot2400','DShot1200','DShot600','DShot300','48kHz PWM','24kHz PWM'];
+const FRAME_STIFFNESS =['Sehr steif (6mm+ Carbon)','Standard (5mm Carbon)','Flexibel / Aero (3-4mm)','Cinewhoop / Ducted'];
+const MOTOR_POLES_OPTS=['12 Pole (Micro)','14 Pole (Standard)','16 Pole (7"+)'];
+const BATTERY_TYPES   =['LiPo','LiIon / Li-HV (Longrange)'];
+const RC_LINK_HZ_OPTS =['ELRS 500Hz','ELRS 250Hz','ELRS 150Hz','CRSF / Tracer 150Hz','Ghost 250Hz','FrSky 50Hz'];
 
 // ═══════════════════════════════════════════════════════════
 // LANGUAGE SYSTEM — DE / EN
@@ -765,6 +770,7 @@ const TRANSLATIONS_DE = {
   'phase.diagnose':       'Diagnose',
   'phase.props':          'Props',
   'phase.kv':             'KV-Physik',
+  'phase.log':            'Updates',
   'phase.filter':         'Filter',
   // Missing fields
   'missing.name':         'Kopter-Name',
@@ -879,6 +885,7 @@ const TRANSLATIONS_EN = {
   'phase.diagnose':       'Diagnosis',
   'phase.props':          'Props',
   'phase.kv':             'KV Physics',
+  'phase.log':            'Updates',
   'phase.filter':         'Filter',
   // Missing fields
   'missing.name':         'Craft Name',
@@ -935,6 +942,68 @@ function t(key) {
 function L(de, en) { return LANG === 'en' ? en : de; }
 
 // ═══════════════════════════════════════════════════════════
+// CHANGELOG
+// ═══════════════════════════════════════════════════════════
+const CHANGELOG = [
+  {
+    version: '1.1.0',
+    date: '2026-05-11',
+    label: 'Update',
+    changes: {
+      de: [
+        '🆕 Neue Eingabefelder: Rahmen-Steifigkeit, Motor-Pole, RC-Link Hz, Akku-Typ, Kondensator',
+        '🎚️ Betaflight Slider-Empfehlungen (Master Multiplier, Damping, Tracking, FF, Dynamic Idle)',
+        '📋 Betaflight CLI Export — alle PID/Filter-Werte als kopierbarer CLI-Befehl',
+        '⚠️ Sanity Checks — Warnungen bei unrealistischen KV/Frame/Gewicht-Kombinationen',
+        '💡 Tooltips auf Schlüsselfeldern mit Erklärung warum der Wert wichtig ist',
+        '🗑️ Props-Tab entfernt (vereinfachte Navigation)',
+        '📏 Frame-Größen erweitert bis 2 Zoll',
+        '🔋 Zellanzahl erweitert bis 2S',
+        '🔧 Physik-Berechnung nutzt jetzt Rahmen-Steifigkeit für P-Term LPF',
+        '🔌 Kondensator-Checkbox beeinflusst Frequency Depth (Sicherheitspuffer)',
+      ],
+      en: [
+        '🆕 New fields: Frame Stiffness, Motor Poles, RC Link Hz, Battery Type, Capacitor',
+        '🎚️ Betaflight Slider Recommendations (Master Multiplier, Damping, Tracking, FF, Dynamic Idle)',
+        '📋 Betaflight CLI Export — all PID/filter values as copy-paste CLI command',
+        '⚠️ Sanity Checks — warnings for unrealistic KV/frame/weight combinations',
+        '💡 Tooltips on key fields explaining why the value matters',
+        '🗑️ Props tab removed (simplified navigation)',
+        '📏 Frame sizes extended down to 2 inch',
+        '🔋 Cell count extended down to 2S',
+        '🔧 Physics calculation now uses frame stiffness for P-Term LPF',
+        '🔌 Capacitor checkbox affects Frequency Depth (safety buffer)',
+      ]
+    }
+  },
+  {
+    version: '1.0.0',
+    date: '2026-05-11',
+    label: 'Launch',
+    changes: {
+      de: [
+        '🚀 Erstveröffentlichung',
+        '⚡ FETtec Alpha + 🔵 Betaflight Unterstützung',
+        '🎯 Physikalisch berechnete PIDs nach Frame/KV/Props',
+        '📐 10 geführte Setup-Phasen pro Firmware',
+        '🌍 Zweisprachig DE/EN',
+        '💾 Profil-Verwaltung mit Export/Import/PDF',
+        '📱 Mobile-fähig (iOS + Android Homescreen)',
+      ],
+      en: [
+        '🚀 Initial release',
+        '⚡ FETtec Alpha + 🔵 Betaflight support',
+        '🎯 Physics-based PID calculation by frame/KV/props',
+        '📐 10 guided setup phases per firmware',
+        '🌍 Bilingual DE/EN',
+        '💾 Profile management with export/import/PDF',
+        '📱 Mobile-ready (iOS + Android homescreen)',
+      ]
+    }
+  }
+];
+
+// ═══════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════
 let state = {
@@ -943,7 +1012,7 @@ let state = {
   stepsDone: {},      // {phaseId: Set<idx>}
   profiles: [],
   activeIdx: null,
-  form: {name:'',firmware:'FETtec Alpha',fc:FC_MODELS[0],esc:ESC_MODELS[0],rx:RX_PROTOS[0],
+  form: {name:'',firmware:'FETtec Alpha',fc:FC_MODELS[0],esc:ESC_MODELS[0],rx:RX_PROTOS[0],frameStiffness:'Standard (5mm Carbon)',motorPoles:'14 Pole (Standard)',battType:'LiPo',rcLinkHz:'ELRS 250Hz',hasCap:false,
          vtx:VTX_TYPES[0],frameSize:'5"',type:'Freestyle',cells:'4S',
          motorModel:'',motorKV:'',motorStator:'',propSize:'',propDiameter:'5"',propBlades:'3 Blatt',propPitch:'4.3"',battMah:'',weightG:'',escPWM:'OneWire (empfohlen)',notes:'',diagLog:[]}
 };
@@ -974,6 +1043,7 @@ const DEFAULT_PROFILES = [
     battMah:     '1300',
     weightG:     '',
     notes:       'Standard 5" Freestyle · FETtec Alpha · 1750KV@6S · Props 5×4.0×3',
+    frameStiffness:'Standard (5mm Carbon)',motorPoles:'14 Pole (Standard)',battType:'LiPo',rcLinkHz:'ELRS 250Hz',hasCap:false,
     diagLog:     [],
   },
   {
@@ -997,6 +1067,7 @@ const DEFAULT_PROFILES = [
     battMah:     '1300',
     weightG:     '',
     notes:       'Standard 5" Freestyle · Betaflight 4.4 · 1750KV@6S · Props 5×4.0×3',
+    frameStiffness:'Standard (5mm Carbon)',motorPoles:'14 Pole (Standard)',battType:'LiPo',rcLinkHz:'ELRS 250Hz',hasCap:false,
     diagLog:     [],
   },
 ];
@@ -1096,6 +1167,7 @@ const ALPHA_PRESETS = {
 // P & D sinken mit größerem Frame (mehr Hebelkraft, mehr Masse)
 // I steigt leicht (Langzeitstabilität wichtiger)
 const FRAME_SCALE = {
+  '2"':             {P:1.15, I:0.88, D:1.15},
   '2.5"':           {P:1.10, I:0.92, D:1.10},
   '3"':             {P:1.05, I:0.94, D:1.05},
   '3.5"':           {P:1.02, I:0.96, D:1.02},
@@ -1113,6 +1185,7 @@ const FRAME_SCALE = {
 // + RPM-Filter automatisch via OneWire-Telemetrie
 // Empfehlungen beziehen sich auf "Frequency depth" und "Frame strength"
 const FRAME_FILTER = {
+  '2"':              {freqDepth:0.45,frameStr:'HIGH',  rpmFilter:true, note:'2": Micro-Quad. Sehr steife Frames, hohe RPM. Frequency depth niedrig halten.'},
   '2.5"':            {freqDepth:0.5, frameStr:'HIGH',  rpmFilter:true, note:'Kleine Props: Frequency depth moderat. Frame HIGH für steife Mini-Frames.'},
   '3"':              {freqDepth:0.5, frameStr:'HIGH',  rpmFilter:true, note:'Kleine Props: Frequency depth moderat. Frame HIGH.'},
   '3.5"':            {freqDepth:0.6, frameStr:'HIGH',  rpmFilter:true, note:''},
@@ -1301,7 +1374,7 @@ function calcYawJump(propDiameter, motorKV, cells, propPitch, propBlades) {
   return Math.min(0.60, Math.round(yj * 10000) / 10000);
 }
 
-function getTuning(type, size, weightG, escPWM, propDiameter, motorKV, cells, propPitch, propBlades) {
+function getTuning(type, size, weightG, escPWM, propDiameter, motorKV, cells, propPitch, propBlades, frameStiffness, hasCap) {
   size     = size     || '5"';
   weightG  = weightG  || '0';
   escPWM   = escPWM   || 'OneWire (empfohlen)';
@@ -1327,9 +1400,16 @@ function getTuning(type, size, weightG, escPWM, propDiameter, motorKV, cells, pr
     : {...preset.tpa};
 
   // Physikalisch berechnete Parameter (überschreiben Preset-Werte)
+  // Capacitor: no cap → raise Frequency Depth by 0.05 as safety buffer
+  const capMod = hasCap ? 0 : 0.05;
+  // Frame stiffness modifier for P-Term LPF
+  const stiffMod = (frameStiffness||'').includes('Sehr steif') ? 0.08
+                 : (frameStiffness||'').includes('Flexibel')   ? -0.08
+                 : (frameStiffness||'').includes('Cinewhoop')  ? -0.12
+                 : 0;
   const sw  = calcSetpointWeight(size, weightG, pwmNum);
-  const fd  = calcFreqDepth(size, weightG, propBlades);
-  const lpf = calcPTermLPF(size, type);
+  const fd  = Math.min(0.95, calcFreqDepth(size, weightG, propBlades) + capMod);
+  const lpf = Math.min(0.92, Math.max(0.10, calcPTermLPF(size, type) + stiffMod));
   const yj  = calcYawJump(propDiameter, motorKV, cells, propPitch, propBlades);
 
   // Notiz: zeige Abweichung vom Preset
@@ -1377,7 +1457,7 @@ function getSteps(phaseId, c) {
   if ((c.firmware||'FETtec Alpha') === 'Betaflight') {
     return getBFSteps(phaseId, c);
   }
-  const pid=getPIDs(c.type,c.frameSize,c.motorKV,c.cells), tun=getTuning(c.type,c.frameSize,c.weightG,c.escPWM,c.propDiameter,c.motorKV,c.cells,c.propPitch,c.propBlades), rat=getRates(c.type);
+  const pid=getPIDs(c.type,c.frameSize,c.motorKV,c.cells), tun=getTuning(c.type,c.frameSize,c.weightG,c.escPWM,c.propDiameter,c.motorKV,c.cells,c.propPitch,c.propBlades,c.frameStiffness,c.hasCap), rat=getRates(c.type);
   const flt=getFrameFilter(c.frameSize), large=isLargeFrame(c.frameSize);
   const isElrs=c.rx.includes('ELRS'), isCrsf=c.rx.includes('CRSF')||c.rx.includes('Tracer');
   const isGhost=c.rx.includes('Ghost'), isFrsky=c.rx.includes('FrSky');
@@ -1489,11 +1569,11 @@ function getDiagPhase(c) {
       check:'Motoren nach 3min Hover maximal lauwarm' },
 
     { label:'📳 Schnelle Vibrationen / metallisches Zittern',
-      detail:`URSACHE: P-Term zu hoch. Die Korrektur überschießt und schaukelt auf.\n\nSYMPTOM-CHECK:\n• Beim Hovern sichtbare Micro-Vibrationen → P zu hoch\n• Nur bei hohem Throttle → TPA zu niedrig\n• Metallisches Schleifgeräusch → D zu hoch\n\nFIX P-Oszillation:\n  Roll P: ${pid.P[0].toFixed(1)} → ${(pid.P[0]*0.85).toFixed(1)} (−15%)\n  Pitch P: ${pid.P[1].toFixed(1)} → ${(pid.P[1]*0.85).toFixed(1)}\n\nFIX nur bei Vollgas:\n  TPA P Reduction erhöhen: aktuell ${getTuning(c.type,c.frameSize,c.weightG,c.escPWM,c.propDiameter,c.motorKV,c.cells,c.propPitch,c.propBlades).tpa.p.toFixed(2)} → ${Math.min(0.6,getTuning(c.type,c.frameSize,c.weightG,c.escPWM,c.propDiameter,c.motorKV,c.cells,c.propPitch,c.propBlades).tpa.p+0.1).toFixed(2)}\n\n${large?'⚠️ Großer Frame: Hebelkraft verstärkt P-Effekte 3× gegenüber 3". Vorsichtig vorgehen!':''}`,
+      detail:`URSACHE: P-Term zu hoch. Die Korrektur überschießt und schaukelt auf.\n\nSYMPTOM-CHECK:\n• Beim Hovern sichtbare Micro-Vibrationen → P zu hoch\n• Nur bei hohem Throttle → TPA zu niedrig\n• Metallisches Schleifgeräusch → D zu hoch\n\nFIX P-Oszillation:\n  Roll P: ${pid.P[0].toFixed(1)} → ${(pid.P[0]*0.85).toFixed(1)} (−15%)\n  Pitch P: ${pid.P[1].toFixed(1)} → ${(pid.P[1]*0.85).toFixed(1)}\n\nFIX nur bei Vollgas:\n  TPA P Reduction erhöhen: aktuell ${getTuning(c.type,c.frameSize,c.weightG,c.escPWM,c.propDiameter,c.motorKV,c.cells,c.propPitch,c.propBlades,c.frameStiffness,c.hasCap).tpa.p.toFixed(2)} → ${Math.min(0.6,getTuning(c.type,c.frameSize,c.weightG,c.escPWM,c.propDiameter,c.motorKV,c.cells,c.propPitch,c.propBlades,c.frameStiffness,c.hasCap).tpa.p+0.1).toFixed(2)}\n\n${large?'⚠️ Großer Frame: Hebelkraft verstärkt P-Effekte 3× gegenüber 3". Vorsichtig vorgehen!':''}`,
       check:'Keine hörbaren/sichtbaren schnellen Vibrationen' },
 
     { label:'🌊 Langsames Wobbeln / Nachschwingen nach Manöver',
-      detail:`URSACHE: I-Term zu hoch. Der akkumulierte Fehler erzeugt eine Gegenbewegung.\n\nSYMPTOM:\n• Kopter "federt" nach schnellen Richtungswechseln zurück\n• Besonders nach Flip/Roll oder Gasgeben/Wegnehmen\n\nFIX:\n  Roll I: ${pid.I[0].toFixed(3)} → ${(pid.I[0]*0.85).toFixed(3)}\n  Pitch I: ${pid.I[1].toFixed(3)} → ${(pid.I[1]*0.85).toFixed(3)}\n\nZUSÄTZLICH: Throttle Punch I Boost (Anti-Gravity) Strength senken:\n  Aktuell: ${getTuning(c.type,c.frameSize,c.weightG,c.escPWM,c.propDiameter,c.motorKV,c.cells,c.propPitch,c.propBlades).ibs.toFixed(1)} → ${(getTuning(c.type,c.frameSize,c.weightG,c.escPWM,c.propDiameter,c.motorKV,c.cells,c.propPitch,c.propBlades).ibs*0.8).toFixed(1)}`,
+      detail:`URSACHE: I-Term zu hoch. Der akkumulierte Fehler erzeugt eine Gegenbewegung.\n\nSYMPTOM:\n• Kopter "federt" nach schnellen Richtungswechseln zurück\n• Besonders nach Flip/Roll oder Gasgeben/Wegnehmen\n\nFIX:\n  Roll I: ${pid.I[0].toFixed(3)} → ${(pid.I[0]*0.85).toFixed(3)}\n  Pitch I: ${pid.I[1].toFixed(3)} → ${(pid.I[1]*0.85).toFixed(3)}\n\nZUSÄTZLICH: Throttle Punch I Boost (Anti-Gravity) Strength senken:\n  Aktuell: ${getTuning(c.type,c.frameSize,c.weightG,c.escPWM,c.propDiameter,c.motorKV,c.cells,c.propPitch,c.propBlades,c.frameStiffness,c.hasCap).ibs.toFixed(1)} → ${(getTuning(c.type,c.frameSize,c.weightG,c.escPWM,c.propDiameter,c.motorKV,c.cells,c.propPitch,c.propBlades,c.frameStiffness,c.hasCap).ibs*0.8).toFixed(1)}`,
       check:'Kopter bleibt nach Manövern ruhig' },
 
     { label:'💨 Drift / Kopter hält Lage nicht bei Wind',
@@ -1789,8 +1869,90 @@ function getPhysPhase(c) {
 }
 
 // ═══════════════════════════════════════════════════════════
+// CHANGELOG PHASE
+// ═══════════════════════════════════════════════════════════
+function getChangelogPhase() {
+  const entries = CHANGELOG.map(entry => {
+    const changes = (LANG === 'en' ? entry.changes.en : entry.changes.de)
+      .map(c => `  • ${c}`).join('\n');
+    return `<div style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <span style="background:${entry.label==='Launch'?'var(--accent)':'var(--green)'};color:#fff;font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px">${entry.label}</span>
+        <span style="font-size:15px;font-weight:700;color:var(--text-1)">v${entry.version}</span>
+        <span style="font-size:11px;color:var(--text-4)">${entry.date}</span>
+      </div>
+      <div style="background:var(--bg-sec);border-radius:var(--radius-sm);padding:12px 14px;border:1px solid var(--border);font-size:12px;color:var(--text-2);white-space:pre-line;font-family:inherit;line-height:1.8">${changes}</div>
+    </div>`;
+  }).join('');
+
+  return `<div class="phase-header">
+    <div>
+      <div class="phase-title">📝 ${LANG==='en'?'Update History':'Update-Verlauf'}</div>
+      <div class="phase-meta">${LANG==='en'?'All changes and improvements at a glance':'Alle Änderungen und Verbesserungen auf einen Blick'}</div>
+    </div>
+  </div>
+  <div style="padding:4px 0">${entries}</div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
 // BETAFLIGHT STEP CONTENT + QUICKREF
 // ═══════════════════════════════════════════════════════════
+
+// ── Betaflight Slider Empfehlungen (aus Hardware-Inputs berechnet) ──────────
+function getBFSliders(c) {
+  const twr   = (()=>{
+    const kv=parseInt(c.motorKV)||1750, s=parseInt(c.cells)||4, w=parseInt(c.weightG)||500;
+    const voltage=s*3.7, rpm=kv*voltage;
+    // Simplified thrust estimate
+    const propIn = parseFloat(c.propDiameter)||5.0;
+    const thrustOne = 0.0000045 * rpm * rpm * propIn * propIn / 1e6;
+    const thrustTotal = thrustOne * 4;
+    return w>0 ? (thrustTotal*1000/w) : 0;
+  })();
+  const stator  = c.motorStator || '2207';
+  const statorD = parseInt(stator.substring(0,2))||22; // Diameter mm
+  const statorH = parseInt(stator.substring(2)  )||7;  // Height mm
+  const stiff   = c.frameStiffness || 'Standard (5mm Carbon)';
+  const size    = c.frameSize || '5"';
+  const sizeNum = parseFloat(size) || 5.0;
+  const rcHz    = parseInt((c.rcLinkHz||'250').match(/\d+/)||['250']) || 250;
+  const propIn  = parseFloat(c.propDiameter)||5.0;
+  const blades  = parseInt(c.propBlades)||3;
+  const battType= c.battType||'LiPo';
+
+  // Master Multiplier: high TWR race→0.9, heavy/cine→1.1
+  const masterMult = twr > 6 ? 0.90 : twr < 2.5 ? 1.15 : 1.00;
+
+  // Damping (D Gains): large motor + noisy frame → higher
+  const dampBase = statorD >= 28 ? 1.15 : statorD >= 23 ? 1.0 : 0.90;
+  const damp = stiff.includes('Flexibel') ? dampBase + 0.1 : dampBase;
+
+  // Tracking (P & I): small stiff frames → higher
+  const trackBase = sizeNum <= 3 ? 1.15 : sizeNum <= 4 ? 1.05 : 1.0;
+  const track = stiff.includes('Sehr steif') ? trackBase + 0.05 : trackBase;
+
+  // Feedforward: ELRS_Hz / 100 × (1 / prop_inertia)
+  const propInertia = (propIn * propIn * blades) / 75; // normalized
+  const ff = Math.min(1.6, Math.max(0.6, (rcHz / 100) * (1 / propInertia)));
+
+  // Dynamic Idle RPM: 5"→4500, 7"→3000, smaller→5000+
+  const dynIdleRPM = sizeNum >= 7 ? 3000 : sizeNum >= 6 ? 3500 : sizeNum >= 5 ? 4500 : sizeNum >= 3 ? 5500 : 7000;
+
+  // vbat_sag: LiIon needs 100% always
+  const vbatSag = battType.includes('LiIon') ? 100 : 70;
+
+  return {
+    masterMult: masterMult.toFixed(2),
+    damp:       damp.toFixed(2),
+    track:      track.toFixed(2),
+    ff:         ff.toFixed(2),
+    dynIdleRPM,
+    vbatSag,
+    twr: twr.toFixed(1),
+    note: battType.includes('LiIon') ? L('LiIon erkannt → vbat_sag 100% empfohlen!','LiIon detected → vbat_sag 100% recommended!') : '',
+  };
+}
+
 
 function getBFSteps(phaseId, c) {
   const bfp   = getBFPIDs(c.type, c.frameSize, c.motorKV, c.cells);
@@ -1840,6 +2002,28 @@ function getBFSteps(phaseId, c) {
        c:'OSD Elemente positioniert, Spannung kalibriert'},
     ]},
     ph6:{title:'PID Tuning Tab — PIDs',color:'#ef4444',warn:'🔴 Sliders: Mode OFF für manuelle Eingabe!',steps:[
+      {l:L('🎚️ Slider-Empfehlungen (hardware-basiert)','🎚️ Slider Recommendations (hardware-based)'),
+       d:(()=>{const sl=getBFSliders(c);return L(
+         `Basierend auf deinem Setup werden folgende Slider empfohlen:\n\n` +
+         `Master Multiplier:  ${sl.masterMult}  (TWR=${sl.twr} → ${parseFloat(sl.masterMult)<1?'Race-Build senken':'bei schweren Kopt. erhöhen'})\n` +
+         `Damping (D-Gains):  ${sl.damp}  (Stator ${c.motorStator||'2207'} → ${parseFloat(sl.damp)>1?'groß\u2192erhöhen für Kontrolle':'Standard'})\n` +
+         `Tracking (P+I):     ${sl.track}  (${c.frameSize||'5"'} ${(c.frameStiffness||'').includes('steif')?'steif→höher':'Standard'})\n` +
+         `Feedforward (FF):   ${sl.ff}  (${c.rcLinkHz||'250Hz'} → ELRS_Hz/100 × Prop-Trägheit)\n` +
+         `Dynamic Idle:       ${sl.dynIdleRPM} RPM (Prop-Größe ${c.propDiameter||'5"'})\n` +
+         `Vbat Sag Comp.:     ${sl.vbatSag}%\n` +
+         (sl.note ? `\n⚠️ ${sl.note}` : '') +
+         `\n\n⚠️ Sliders: Mode OFF → dann Werte manuell eingeben!`,
+         `Based on your setup, the following sliders are recommended:\n\n` +
+         `Master Multiplier:  ${sl.masterMult}  (TWR=${sl.twr} → ${parseFloat(sl.masterMult)<1?'racing build: reduce':'heavy build: increase'})\n` +
+         `Damping (D-Gains):  ${sl.damp}  (Stator ${c.motorStator||'2207'} → ${parseFloat(sl.damp)>1?'large\u2192increase for control':'standard'})\n` +
+         `Tracking (P+I):     ${sl.track}  (${c.frameSize||'5"'} ${(c.frameStiffness||'').includes('steif')?'stiff→higher':'standard'})\n` +
+         `Feedforward (FF):   ${sl.ff}  (${c.rcLinkHz||'250Hz'} → ELRS_Hz/100 × prop inertia)\n` +
+         `Dynamic Idle:       ${sl.dynIdleRPM} RPM (prop size ${c.propDiameter||'5"'})\n` +
+         `Vbat Sag Comp.:     ${sl.vbatSag}%\n` +
+         (sl.note ? `\n⚠️ ${sl.note}` : '') +
+         `\n\n⚠️ Sliders: Mode OFF → enter values manually!`
+       )})(),
+       c:L('Slider-Werte notiert / verstanden','Slider values noted / understood')},
       {l:'⚠️ Betaflight PID-Skala — NICHT Alpha!',
        d:`KRITISCH: Betaflight-Werte sind komplett andere Zahlen als FETtec Alpha!\n\nBetaflight Default 5": P=45  I=80  D=40\nFETtec Alpha Default 5": P=1,5  I=0,02  D=2,9\n\nNIE Werte zwischen beiden Systemen übertragen!\n\nSlider-Modus:\n→ PID Tuning Tab → oben "Mode: OFF" für direkte Zahleneingabe\n→ Sonst überschreiben Slider deine Werte!\n→ Presets Tab: guten BF-Preset als Ausgangsbasis laden!`,
        c:'Sliders auf OFF, Betaflight-Skala verstanden'},
@@ -1973,6 +2157,13 @@ function renderNav() {
     'btn-pdf':        t('ui.pdf'),
     'lang-toggle':    LANG === 'de' ? '🇩🇪 DE' : '🇬🇧 EN',
   };
+  // Show/hide CLI button based on firmware
+  const cliBtnEl = document.getElementById('btn-cli');
+  if (cliBtnEl) {
+    const isBFNow = (state.form.firmware||'FETtec Alpha') === 'Betaflight';
+    cliBtnEl.style.display = isBFNow ? '' : 'none';
+    cliBtnEl.textContent = LANG === 'en' ? '📋 Copy CLI' : '📋 CLI';
+  }
   // Update beta banner language
   const bannerEl = document.getElementById('beta-banner-text');
   if (bannerEl) bannerEl.innerHTML = LANG === 'en'
@@ -2010,6 +2201,9 @@ function renderNav() {
 function renderContent() {
   const el = document.getElementById('content');
   if (state.phase === 'setup') { el.innerHTML = renderSetup(); attachSetupEvents(); }
+  else if (state.phase === 'log') {
+    el.innerHTML = getChangelogPhase();
+  }
   else { el.innerHTML = renderPhase(); attachPhaseEvents(); }
 }
 
@@ -2036,9 +2230,10 @@ function selField(id, label, options, val, req=false) {
     <select id="f_${id}">${options.map(o=>`<option${o===val?' selected':''}>${o}</option>`).join('')}</select>
   </div>`;
 }
-function inpField(id, label, ph, val='', req=false) {
+function inpField(id, label, ph, val='', req=false, tip='') {
   const isEmpty = req && !val;
-  return `<div class="field${req?' required':''}${isEmpty?' empty':''}"><label>${label}</label><input id="f_${id}" placeholder="${ph}" value="${val}"></div>`;
+  const tipHtml = tip ? `<i class="tip" data-tip="${tip}">i</i>` : '';
+  return `<div class="field${req?' required':''}${isEmpty?' empty':''}"><label>${label}${tipHtml}</label><input id="f_${id}" placeholder="${ph}" value="${val}"></div>`;
 }
 
 function thrustWidget(form) {
@@ -2197,16 +2392,19 @@ function renderSetup() {
       ${f.firmware==='Betaflight'
         ? `<div class="field-wrap"><label class="field-label">${t('field.esc')} (${L('Freitext','free text')})</label><input id="f_esc" class="field-inp" value="${f.esc||''}" placeholder="z.B. Hobbywing XRotor 45A, BLHeli32 40A" oninput="state.form.esc=this.value;updateSetupDynamic()"></div>`
         : selField('esc',t('field.esc'),ESC_MODELS,f.esc)}
+      ${selField('frameStiffness',L('Rahmen-Steifigkeit','Frame Stiffness'),FRAME_STIFFNESS,f.frameStiffness||'Standard (5mm Carbon)')}
       ${selField('escPWM',t('field.esc_pwm'),ESC_PWM_OPTS,f.escPWM||'OneWire (empfohlen)')}
       ${selField('rx',t('field.rx'),RX_PROTOS,f.rx)}
+      ${selField('rcLinkHz',L('RC Link Paketrate','RC Link Packet Rate'),RC_LINK_HZ_OPTS,f.rcLinkHz||'ELRS 250Hz')}
       ${selField('vtx',t('field.vtx'),VTX_TYPES,f.vtx)}
     </div>
 
     <div class="section-label"><span>Motor & Propeller</span><hr></div>
     <div class="grid3">
       ${inpField('motorModel',t('field.motor_model'),t('field.motor_model_ph'),f.motorModel)}
-      ${inpField('motorKV',t('field.motor_kv'),t('field.motor_kv_ph'),f.motorKV,true)}
-      ${inpField('motorStator',t('field.motor_stator'),t('field.motor_stator_ph'),f.motorStator)}
+      ${inpField('motorKV',t('field.motor_kv'),t('field.motor_kv_ph'),f.motorKV,true,L('Wird für KV-Analyse und P/D-Skalierung benötigt.\nHoher KV = mehr Systemverstärkung = niedrigere PIDs.\nSüßspot 5\'\'/6S: 1700-1900KV','Used for KV analysis and P/D scaling.\nHigh KV = more system gain = lower PIDs.\nSweetspot 5\'\'/6S: 1700-1900KV'))}
+      ${inpField('motorStator',t('field.motor_stator'),t('field.motor_stator_ph'),f.motorStator,false,L('Format: Durchmesser×Höhe (mm). z.B. 2207 = 22mm Ø · 7mm hoch.\nGrößerer Stator = mehr Drehmoment = BF Damping-Slider erhöhen.','Format: diameter×height (mm). e.g. 2207 = 22mm Ø · 7mm tall.\nLarger stator = more torque = increase BF Damping slider.'))}
+      ${selField('motorPoles',L('Motor Pole (Magnete)','Motor Poles (Magnets)'),MOTOR_POLES_OPTS,f.motorPoles||'14 Pole (Standard)')}
     </div>
     <div style="background:var(--surface);border-radius:7px;padding:7px 12px;font-size:9px;color:var(--text-3);line-height:1.6">
       💡 Stator-Format: Durchmesser × Höhe in mm. Beispiele: 2207 = 22mm ∅ · 7mm hoch · 2806.5 = 28mm ∅ · 6.5mm hoch<br>
@@ -2226,11 +2424,19 @@ function renderSetup() {
     <div class="section-label"><span>Akku & Gewicht</span><hr></div>
     <div class="grid3">
       ${selField('cells',t('field.cells'),CELL_COUNTS,f.cells,true)}
+      ${selField('battType',L('Akku-Typ','Battery Type'),BATTERY_TYPES,f.battType||'LiPo')}
       ${inpField('battMah',t('field.mah'),t('field.mah_ph'),f.battMah,true)}
-      ${inpField('weightG',t('field.weight'),t('field.weight_ph'),f.weightG,true)}
+      ${inpField('weightG',t('field.weight'),t('field.weight_ph'),f.weightG,true,L('Gesamtgewicht mit Akku in Gramm.\nBenötigt für Thrust-to-Weight und Setpoint Weight Berechnung.\nTypisch 5" Freestyle: 450-650g','Total weight with battery in grams.\nNeeded for Thrust-to-Weight and Setpoint Weight calculation.\nTypical 5" freestyle: 450-650g'))}
     </div>
     <div id="tw-container">${thrustWidget(f)}</div>
 
+    <div class="field" style="flex-direction:row;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-sec);border:1px solid var(--border);border-radius:var(--radius-sm)">
+      <input type="checkbox" id="f_hasCap" ${f.hasCap?'checked':''} style="width:18px;height:18px;min-height:18px;cursor:pointer;accent-color:var(--accent)" onchange="state.form.hasCap=this.checked;updateSetupDynamic()">
+      <label for="f_hasCap" style="font-size:13px;color:var(--text-1);font-weight:500;cursor:pointer;text-transform:none;letter-spacing:0">
+        ${L('Kondensator verbaut (Low-ESR Cap)','Capacitor installed (Low-ESR Cap)')}
+        <span style="display:block;font-size:11px;color:var(--text-3);font-weight:400;margin-top:2px">${L('Kein Cap → Frequency Depth wird um 0.05 erhöht (Sicherheitspuffer)','No cap → Frequency Depth increased by 0.05 (safety buffer)')}</span>
+      </label>
+    </div>
     ${inpField('notes',t('field.notes'),t('field.notes_ph'),f.notes)}
 
     <div id="setup-preview">${previewHtml}</div>
@@ -2263,7 +2469,7 @@ function attachSetupEvents() {
   });
 
   // Selects: re-render on change (no focus issue with dropdowns)
-  const selectFields = ['type','frameSize','escPWM','rx','vtx','cells','propDiameter','propPitch','propBlades'];
+  const selectFields = ['type','frameSize','frameStiffness','escPWM','rx','rcLinkHz','vtx','cells','battType','propDiameter','propPitch','propBlades','motorPoles'];
   selectFields.forEach(id => {
     const el = document.getElementById('f_'+id);
     if (!el) return;
@@ -2274,7 +2480,19 @@ function attachSetupEvents() {
   });
 
   const btn = document.getElementById('startbtn');
-  if (btn) btn.addEventListener('click', saveProfile);
+  if (btn) btn.addEventListener('click', () => {
+    saveProfile();
+    // Jump immediately to ph1 (Verbindung) after saving
+    const phases = getPhases();
+    const ph1idx = phases.findIndex(p => p.id === 'ph1');
+    if (ph1idx >= 0) {
+      state.phase = 'ph1';
+      state.done  = new Set(['setup']);
+      render();
+      window.scrollTo(0, 0);
+      document.getElementById('content').scrollTo(0, 0);
+    }
+  });
 }
 
 // Update only dynamic parts of setup form — does NOT replace inputs
@@ -2287,11 +2505,31 @@ function updateSetupDynamic() {
   if (!f.motorKV)     missing.push(t('missing.kv'));
   if (!f.battMah)     missing.push(t('missing.mah'));
   if (!f.weightG)     missing.push(t('missing.weight'));
-  // Props + cells haben immer Dropdown-Werte — gelten als ausgefüllt
-  // Zeige aber eine separate Info wenn noch Standard-Werte genutzt werden
-  const usingDefaults = [];
-  if (!f.propDiameter || f.propDiameter === '5"') {} // OK — default is valid
-  if (!f.motorKV) usingDefaults.push('Motor KV für exakte PID-Berechnung');
+  // Sanity checks
+  const warnings = [];
+  const kv = parseInt(f.motorKV)||0, s = parseInt(f.cells)||4, w = parseInt(f.weightG)||0;
+  const sz = parseFloat(f.frameSize)||5;
+  if (kv>0 && s>0) {
+    const rpm = kv * s * 3.7;
+    if (sz>=7 && rpm>35000) warnings.push(L(`⚠️ ${f.motorKV}KV@${f.cells} = ${Math.round(rpm/1000)}k RPM — zu hoch für ${f.frameSize}! Motorüberhitzung möglich.`,`⚠️ ${f.motorKV}KV@${f.cells} = ${Math.round(rpm/1000)}k RPM — too high for ${f.frameSize}! Motor overheating risk.`));
+    if (sz<=3 && rpm<20000) warnings.push(L(`⚠️ KV niedrig für ${f.frameSize} — Kopter könnte träge reagieren.`,`⚠️ KV low for ${f.frameSize} — craft may feel sluggish.`));
+  }
+  if (w>0) {
+    if (f.type==='Racing' && sz===5 && w>450) warnings.push(L(`⚠️ ${w}g für Racing-Build recht schwer — unter 350g optimal.`,`⚠️ ${w}g for a racing build is heavy — under 350g is optimal.`));
+    if (f.type==='Freestyle' && sz===5 && w>750) warnings.push(L(`⚠️ ${w}g für 5" Freestyle — über 700g wird spürbar träge.`,`⚠️ ${w}g for 5" freestyle — over 700g feels sluggish.`));
+    if (f.type==='Cinewhoop' && w>600) warnings.push(L(`⚠️ ${w}g für Cinewhoop — schwer für ruhige Aufnahmen.`,`⚠️ ${w}g for cinewhoop — heavy for smooth footage.`));
+  }
+  // Show sanity warning box
+  let warnBox = document.getElementById('sanity-warn');
+  if (!warnBox) {
+    warnBox = document.createElement('div');
+    warnBox.id = 'sanity-warn';
+    warnBox.style.cssText='background:#fffaf0;border:1px solid rgba(255,159,10,.25);border-radius:8px;padding:9px 13px;font-size:12px;color:#92400e;margin-bottom:8px;display:none';
+    const reqBar = document.getElementById('req-missing');
+    if (reqBar && reqBar.parentNode) reqBar.parentNode.insertBefore(warnBox, reqBar);
+  }
+  if (warnings.length) { warnBox.style.display='block'; warnBox.innerHTML='⚠️ '+warnings.join('<br>⚠️ '); }
+  else warnBox.style.display='none';
   // Start button
   const btn = document.getElementById('startbtn');
   if (btn) btn.disabled = missing.length > 0;
@@ -2373,7 +2611,7 @@ function renderPhase() {
     ? `<button class="nav-next" style="background:linear-gradient(135deg,${content.color},${content.color}88)" onclick="goPhase(${phIdx+1})">Weiter → ${t(phases[phIdx+1].labelKey)}</button>`
     : `<button class="nav-finish" onclick="finishSetup()">✅ Setup abgeschlossen!</button>`;
   const navDiag  = `<button class="nav-back" style="flex:1;border-color:#c2410c;color:#c2410c" onclick="state.phase='diag';render()">${t('nav.diagnose')}</button>`;
-  const navProps = isBFMode ? '' : `<button class="nav-back" style="flex:1;border-color:#0d9488;color:#0d9488" onclick="state.phase='props';render()">${t('nav.props')}</button>`;
+  const navProps = '';
   const navPhys  = `<button class="nav-back" style="flex:1;border-color:#4f46e5;color:#4f46e5" onclick="state.phase='phys';render()">${t('nav.kv')}</button>`;
 
   return `
@@ -2442,7 +2680,11 @@ function goPhase(idx) {
   const ph = getPhases();
   state.done.add(state.phase);
   state.phase = ph[idx].id;
-  document.getElementById('content').scrollTop = 0;
+  render();
+  // Scroll to top after navigation
+  window.scrollTo(0, 0);
+  const contentEl = document.getElementById('content');
+  if (contentEl) contentEl.scrollTop = 0;
 }
 
 function finishSetup() {
@@ -2459,7 +2701,7 @@ function qrRow(label, val, color, def='') {
 
 function quickRefHtml(c) {
   if ((c.firmware||'FETtec Alpha') === 'Betaflight') return bfQuickRefHtml(c);
-  const pid=getPIDs(c.type,c.frameSize,c.motorKV,c.cells), tun=getTuning(c.type,c.frameSize,c.weightG,c.escPWM,c.propDiameter,c.motorKV,c.cells,c.propPitch,c.propBlades), rat=getRates(c.type);
+  const pid=getPIDs(c.type,c.frameSize,c.motorKV,c.cells), tun=getTuning(c.type,c.frameSize,c.weightG,c.escPWM,c.propDiameter,c.motorKV,c.cells,c.propPitch,c.propBlades,c.frameStiffness,c.hasCap), rat=getRates(c.type);
   const flt=getFrameFilter(c.frameSize), large=isLargeFrame(c.frameSize);
   const cells=parseInt(c.cells)||4, mah=parseInt(c.battMah)||0;
   const fsCol={LOW:'#14b8a6',MEDIUM:'#f59e0b',HIGH:'#ef4444'};
@@ -2753,6 +2995,88 @@ function newProfile() {
   render();
 }
 
+// ── Betaflight CLI diff Export ───────────────────────────────────────────────
+function generateBFCLI(c) {
+  const bfp = getBFPIDs(c.type, c.frameSize, c.motorKV, c.cells);
+  const sl  = getBFSliders(c);
+  const poles = parseInt((c.motorPoles||'14').match(/\d+/)||['14']);
+  const rat = getRates(c.type);
+
+  const lines = [
+    `# PID & Filtering Tool — Betaflight CLI Export`,
+    `# Profil: ${c.name} · ${c.type} ${c.frameSize} · ${c.motorKV||'?'}KV @ ${c.cells}`,
+    `# © 2025 Julian Hillemann — CC BY-NC-ND 4.0`,
+    `# Generated: ${new Date().toISOString().slice(0,10)}`,
+    ``,
+    `# === PIDs ===`,
+    `set p_roll = ${bfp.P[0]}`,
+    `set i_roll = ${bfp.I[0]}`,
+    `set d_roll = ${bfp.D[0]}`,
+    `set f_roll = ${bfp.FF[0]}`,
+    `set p_pitch = ${bfp.P[1]}`,
+    `set i_pitch = ${bfp.I[1]}`,
+    `set d_pitch = ${bfp.D[1]}`,
+    `set f_pitch = ${bfp.FF[1]}`,
+    `set p_yaw = ${bfp.P[2]}`,
+    `set i_yaw = ${bfp.I[2]}`,
+    `set f_yaw = ${bfp.FF[2]}`,
+    `set d_min_roll = ${bfp.Dmin[0]}`,
+    `set d_min_pitch = ${bfp.Dmin[1]}`,
+    ``,
+    `# === Filter ===`,
+    `set gyro_rpm_notch_harmonics = ${bfp.rpmFilter_harmonics}`,
+    `set gyro_rpm_notch_min = ${bfp.rpmFilter_minHz}`,
+    `set dyn_notch_count = ${bfp.dynNotch_count}`,
+    `set dyn_notch_q = ${bfp.dynNotch_q}`,
+    `set dyn_notch_min_hz = ${bfp.dynNotch_minHz}`,
+    `set dyn_notch_max_hz = ${bfp.dynNotch_maxHz}`,
+    `set dterm_lowpass_hz = ${bfp.dtermLPF1_dyn_min}`,
+    `set dterm_lowpass2_hz = ${bfp.dtermLPF2_hz}`,
+    ``,
+    `# === Motor / ESC ===`,
+    `set motor_poles = ${poles}`,
+    `set dyn_idle_min_rpm = ${Math.round(sl.dynIdleRPM/100)}`,
+    `set vbat_sag_compensation = ${sl.vbatSag}`,
+    ``,
+    `# === Feed-Forward ===`,
+    `set feedforward_smooth_factor = ${bfp.ff_smooth}`,
+    `set feedforward_averaging = ${bfp.ff_averaging}`,
+    `set feedforward_boost = ${bfp.ff_boost}`,
+    `set feedforward_jitter_factor = ${bfp.ff_jitter}`,
+    ``,
+    `# === TPA ===`,
+    `set tpa_rate = ${Math.round(bfp.tpa.rate*100)}`,
+    `set tpa_breakpoint = ${bfp.tpa.breakpoint}`,
+    ``,
+    `# === Anti Gravity / I-Term ===`,
+    `set anti_gravity_gain = ${Math.round(bfp.anti_gravity*1000)}`,
+    `set iterm_relax = ${bfp.iterm_relax}`,
+    `set iterm_relax_cutoff = ${bfp.iterm_relax_cutoff}`,
+    ``,
+    `save`,
+  ];
+  return lines.join('\n');
+}
+
+function copyBFCLI() {
+  const c = copter();
+  if ((c.firmware||'FETtec Alpha') !== 'Betaflight') {
+    alert('CLI Export nur im Betaflight-Modus verfügbar.');
+    return;
+  }
+  const cli = generateBFCLI(c);
+  navigator.clipboard.writeText(cli).then(() => {
+    showSaveFeedback('✅ CLI kopiert!', 'var(--green)');
+  }).catch(() => {
+    // Fallback: download as file
+    const blob = new Blob([cli], {type:'text/plain'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `bf_cli_${(c.name||'profile').replace(/[^a-z0-9]/gi,'_')}.txt`;
+    a.click();
+  });
+}
+
 function exportProfile() {
   if (!state.profiles.length) { alert('Keine Profile vorhanden.'); return; }
   const data = JSON.stringify({
@@ -2778,7 +3102,7 @@ function exportPDF() {
   const c = copter();
   if (!c || !c.name) { alert('Zuerst ein Profil anlegen und aktivieren.'); return; }
   const pid  = getPIDs(c.type,c.frameSize,c.motorKV,c.cells);
-  const tun  = getTuning(c.type,c.frameSize,c.weightG,c.escPWM,c.propDiameter,c.motorKV,c.cells,c.propPitch,c.propBlades);
+  const tun  = getTuning(c.type,c.frameSize,c.weightG,c.escPWM,c.propDiameter,c.motorKV,c.cells,c.propPitch,c.propBlades,c.frameStiffness,c.hasCap);
   const rat  = getRates(c.type);
   const flt  = getFrameFilter(c.frameSize);
   const kva  = getKVAnalysis(c.motorKV,c.cells,c.frameSize);

@@ -32,7 +32,7 @@ https://github.com/JulianHillemann/pid-filtering-tool
 
 ### 📩 Sonderlizenzen & Kooperationen
 
-Für kommerzielle Nutzung oder Kooperationen bitte direkt Kontakt aufnehmen.
+Für kommerzielle Nutzung oder Kooperationen bitte direkt Kontakt aufnehmen. julian.hillemann@gmail.com
 
 ---
 

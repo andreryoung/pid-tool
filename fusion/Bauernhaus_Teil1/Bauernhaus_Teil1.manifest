@@ -1,0 +1,10 @@
+{
+	"autodeskProduct": "Fusion",
+	"type": "script",
+	"author": "",
+	"description": {
+		"": "Volumenmodell Bauernhaus Gebaeudeteil 1 (KG-DG, Dach, Gaube) aus Grundriss M 1:100"
+	},
+	"supportedOS": "windows|mac",
+	"editEnabled": true
+}
